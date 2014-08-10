@@ -1,4 +1,4 @@
-import sys, os, re, random
+import sys, os, re, random, operator
 
 ##############################
 
@@ -104,42 +104,11 @@ def parse_args(args):
     print "Input directory = " + directory_in
     print "Output directory = " + directory_out
     print "Clump size = " + str(clump_size)
-    print "Number of words to generate = " + str(num_words)
-             
-##########################################################
-             
-def generate_markov_table(text):
-    ret = {}
-    i = 0;
-    print "Creating Markov table from " + str(len(text)) + " words"
-    while i < len(text) - 1:
-        s = text[i]
-        spp = text[i+1]
-        # Add this instance of word (s) followed by word (spp)
-        if s in ret:
-            if spp in ret[s]:
-                ret[s][spp] += 1
-            else:
-                ret[s][spp] = 1
-        else:
-            ret[s] = {}
-            ret[s][spp] = 1
-        i += 1
-
-    # print some debugging stats
-    keys = ret.keys()
-    for k in keys:
-        subkeys = ret[k].keys()
-        for sk in subkeys:
-            # if this word has many different words after it
-            # and the word combo appears frequently, print it
-            if len(subkeys) > 500 and ret[k][sk] > 500:
-                print " count = " + str(ret[k][sk]) + " key = " + k + " subkey = " + sk
-    return ret
+    print "Number of words to generate = " + str(num_words)       
 
 ################################
 
-def generate_markov_table2(text, num_next):
+def generate_markov_table(text, num_next):
     ret = {}
     i = 0;
     print "Creating Markov table from " + str(len(text)) + " words"
@@ -164,25 +133,30 @@ def generate_markov_table2(text, num_next):
             ret[s][spp] = 1
         i += 1
 
-    # print some debugging stats
+    # print some stats
     keys = ret.keys()
-    counter = 0
+    key_freq = []
     for k in keys:
         subkeys = ret[k].keys()
+        total = 0
         for sk in subkeys:
-            # if this word has many different words after it
-            # and the word combo appears frequently, print it
-#            if len(subkeys) > 500 and ret[k][sk] > 500:
-            if counter % 1000 == 0:
-                print " count = " + str(ret[k][sk]) + " key = " + k + " subkey = " + sk
-            counter += 1
+            total += ret[k][sk]
+        key_freq.append([k, total])
+    # sort list by the frequency (second item)
+    key_freq.sort(key=operator.itemgetter(1))
+    print "Most numerous keys:"
+    top_keys = key_freq[(len(key_freq) - 11):(len(key_freq) - 1)]
+    top_keys.reverse()
+    for s in top_keys:
+        print "    \"" + s[0] + "\" appears " + str(s[1]) + " times"
+
     return ret
 
 ################################
 
-def get_weighted_word(tbl):
+def get_weighted_word(tbl, parent_key):
     keys = tbl.keys()
-    num_keys = len(keys)
+
     total = 0
     for k in tbl:
         total += tbl[k]
@@ -193,14 +167,15 @@ def get_weighted_word(tbl):
         return keys[0]
     else:
         rnd_idx = random.randint(0, total - 1)
-#    print "total = " + str(total) + " rnd = " + str(rnd_idx)
+
     cur_idx = 0
     for k in tbl:
         for i in range(tbl[k]):
             if rnd_idx == cur_idx:
                 return k
             cur_idx += 1
-    print "total = " + str(total) + " rnd = " + str(rnd_idx) + " cur_idx = " + str(cur_idx) + " tbl[0] = " + str(tbl[keys[0]]) + " keys[0] = " + keys[0]   
+            
+    print "Failed to get weighted output word for parent key: " + parent_key
     return ""
 
 ################################
@@ -223,15 +198,13 @@ def generate_markov_text(tbl, num_out):
     line_count = 0
     for i in range(num_out):
         if word in tbl:
-            new_word = get_weighted_word(tbl[word])
+            new_word = get_weighted_word(tbl[word], word)
         else:
             new_word = keys[random.randint(0, num_keys - 1)]
             num_random += 1
            
         if len(new_word) > 0:
             word = new_word
-            if counter % 500 == 0:
-                print "word = " + new_word + " length = " + str(len(new_word))
             ret += " " + new_word
             line_count += len(new_word) + 1
         else:
@@ -308,19 +281,23 @@ def read_input():
             continue
         fixed_words.append(w)
 
-    counter = 0
-    for word in fixed_words:
-        if counter % 10000 == 0:
-            print "example word : " + word + " length : " + str(len(word))
-        counter += 1
+    # Print out some samples of the input
+    example_idx = []
+    for i in range(10):
+        example_idx.append(random.randint(0, len(fixed_words)))
+    print "Example input words: "
+    for i in example_idx:
+        print "    " + fixed_words[i]
+
     return fixed_words
 
 ################################
 
 def write_output(text_out):
     global directory_out
-    
+   
     file_out = directory_out + "\\" + "output.txt"
+    print "Writing output to file: " + file_out
     fo = open(file_out, 'w')
     # put periods before capital letters
     # XXX - make this a post-processing step?
@@ -335,6 +312,7 @@ def write_log(markov_table):
     global directory_out
     
     log_out = directory_out + "\\" + "log.txt"
+    print "Writing log to file: " + log_out
     # write out statistics about the markov table
     fo = open(log_out, 'w')
     fo.write("FirstWord\tSecondWord\tFrequency\n")
@@ -347,8 +325,7 @@ def write_log(markov_table):
 
 parse_args(sys.argv)
 word_array_in = read_input()
-#markov_table = generate_markov_table(word_array_in)
-markov_table = generate_markov_table2(word_array_in, clump_size)
+markov_table = generate_markov_table(word_array_in, clump_size)
 text_out = generate_markov_text(markov_table, num_words)
 write_output(text_out)
 write_log(markov_table)
