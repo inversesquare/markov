@@ -1,4 +1,4 @@
-import sys, os, re, random, operator
+import sys, os, re, random, operator, datetime
 
 ##############################
 
@@ -7,6 +7,13 @@ directory_out = ""
 clump_size = 2
 num_words = 20000
 line_width = 80
+n = datetime.datetime.now()
+run_id = "%04d" % n.year
+run_id += "%02d" % n.month
+run_id += "%02d" % n.day
+run_id += "_" + "%02d" % n.hour
+run_id += "%02d" % n.minute
+run_id += "%02d" % n.second
 
 ##############################
 
@@ -258,10 +265,10 @@ def read_input():
         text_in += c
     text_in = re.sub('\n', ' ', text_in)
     text_in = re.sub('\t', ' ', text_in)
-    text_in = re.sub('\.', ' ', text_in)
-    text_in = re.sub(',', ' ', text_in)
-    text_in = re.sub('\?', ' ', text_in)
-    text_in = re.sub('!', ' ', text_in)
+#    text_in = re.sub('\.', ' ', text_in)
+#    text_in = re.sub(',', ' ', text_in)
+#    text_in = re.sub('\?', ' ', text_in)
+#    text_in = re.sub('!', ' ', text_in)
     text_in = re.sub('"', ' ', text_in)
     text_in = re.sub(';', ' ', text_in)
     text_in = re.sub('=', ' ', text_in)
@@ -295,14 +302,17 @@ def read_input():
 
 def write_output(text_out):
     global directory_out
+    global run_id
    
-    file_out = directory_out + "\\" + "output.txt"
+    file_out = directory_out + "\\" + run_id + "_output.txt"
     print "Writing output to file: " + file_out
     fo = open(file_out, 'w')
     # put periods before capital letters
     # XXX - make this a post-processing step?
-    text_out = re.sub(r"([A-Z][a-z])", r". \1", text_out)
-    text_out = re.sub(r"( \.)", r".", text_out)
+    # XXX - todo: track punctuation placement from input words
+#    text_out = re.sub(r"([A-Z][a-z])", r". \1", text_out)
+    # fix periods floating away from words
+#    text_out = re.sub(r"( \.)", r".", text_out)
     fo.write(text_out)
     fo.close()
     
@@ -310,8 +320,9 @@ def write_output(text_out):
     
 def write_log(markov_table):
     global directory_out
+    global run_id
     
-    log_out = directory_out + "\\" + "log.txt"
+    log_out = directory_out + "\\" + run_id + "_log.txt"
     print "Writing log to file: " + log_out
     # write out statistics about the markov table
     fo = open(log_out, 'w')
